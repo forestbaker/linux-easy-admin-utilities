@@ -1,0 +1,193 @@
+#!/bin/bash
+##################################################################
+#
+# Script to check / audit systems filesystem and report a detailed
+# info from various files and process outputs
+#
+###################################################################
+#
+# Author: Bellamkonda Sudhakar
+# License: GNU GPL v3
+###################################################################
+Version=0.2
+License='GNU GPL v3'
+###################################################################
+# Functions
+###################################################################
+function lpnt {
+for r in {1..80..1}
+do
+   printf "%c" $1
+done 
+printf "\n"
+}
+#
+###################################################################
+function cleanup {
+rm -f 2>/dev/null $CHKPID
+}
+###################################################################
+function create_workspace {
+mkdir $TMPFD
+}
+###################################################################
+function remove_workspace {
+rm -Rf 2>/dev/null $TMPFD
+}
+###################################################################
+function pause {
+echo -n "Press enter to continue..."
+read
+}
+###################################################################
+function line {
+echo >> $TMPFD/$AUDITFL
+}
+###################################################################
+function workspace {
+if [ -d $TMPFD ] 
+then
+    remove_workspace
+    create_workspace
+else
+    create_workspace
+fi
+}
+###################################################################
+function depchkerr {
+echo "Dep check error - $Deperr"
+}
+###################################################################
+function depchk {
+Depchk=0
+Deperr=''
+if [[ -z $(wc --version 2>/dev/null) ]]; then Depchk=1; Deperr='wc'; depchkerr; fi
+if [[ -z $(du --version 2>/dev/null) ]]; then Depchk=1; Deperr='du'; depchkerr; fi
+if [[ -z $(df --version 2>/dev/null) ]]; then Depchk=1; Deperr='df'; depchkerr; fi
+if [[ -z $(sort --version 2>/dev/null) ]]; then Depchk=1; Deperr='sort'; depchkerr; fi
+if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+if [[ -z $(head --version 2>/dev/null) ]]; then Depchk=1; Deperr='head'; depchkerr; fi
+if [[ -z $(grep -V 2>/dev/null) ]]; then Dechk=1; Deperr='grep'; depchkerr; fi 
+if [[ -z $(sed --version 2>/dev/null) ]]; then Depchk=1; Deperr='sed'; depchkerr; fi
+if [[ -z $(mount -V 2>/dev/null) ]]; then Depchk=1; Deperr='mount'; depchkerr; fi
+if [[ -z $(fdisk -v 2>/dev/null) ]]; then Depchk=1; Deperr='fdisk'; depchkerr; fi
+if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi 
+}
+###################################################################
+
+###################################################################
+AUDITFL='fsaudit'
+CHKPID='/var/run/fsaudir-ppid'
+TMPFD='/tmp/fsaudit'
+TMPFL1='tmpfl1'
+TMPFL2='tmpfl2'
+TMPFL3='tmpfl3'
+OPSYS=$(uname -o)
+OPKER=$(uname -s)
+OPDST=$(uname -r)
+OPKRL=$(uname -r)
+OPDST='Unknown'
+depchk
+workspace
+HSTNM=$AUDITFL
+MJR=${OPDST:0:1}
+MIR=${OPDST:2:1}
+FSTOT=$(mount | grep ^/dev/ | wc -l)
+FRMFSTAB=$(grep -v ^# /etc/fstab | grep -v "tmpfs\|devpts\|sysfs\|proc\|swap" | sed '/^$/d' | wc -l)
+PROCFS=$(ls /proc/fs)
+###################################################################
+#Main Program Begin
+###################################################################
+if [[ $UID -ne 0 ]]
+then
+    echo
+    echo "No root previleges"
+    exit 1
+fi
+if [[ "$1" == "-c" ]]
+then
+   cleanup
+   echo "$0 PID files removed"
+   exit 0
+fi
+if [[ "$1" == "-h" ]]
+then
+    echo
+    echo "Usage: "
+    echo "fsadtchk [option]"
+    echo "          -a All"
+    echo "          -h Help"
+    echo "          -c Clear PID files"
+    echo "           no option prints the summery information to the stdout and into the /tmp/netadtchk/$AUDITFL file."
+    echo
+    exit 0
+fi
+if [[ -f $CHKPID ]] 
+then
+    echo " fsu Auditor running with PID $( < $CHKPID)"
+    echo " To clear the PID files use the -c option"    
+    exit 1
+else
+    echo $$ > $CHKPID
+fi
+#
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
+#
+#
+echo "Scanning File Systems, takes more time if the FS's is bigger..."
+mount | grep ^/dev/ > $TMPFD/$TMPFL1
+grep -v ^# /etc/fstab | grep -v "tmpfs\|devpts\|sysfs\|proc" | sed '/^$/d' > $TMPFD/$TMPFL2
+df -h | grep ^/dev/ > $TMPFD/$TMPFL3
+#
+#
+printf "%25s %25s\n" "From /etc/fstab" "Current-Mounted" >> $TMPFD/$AUDITFL
+printf "%25s %25s\n" "$FRMFSTAB" "$FSTOT" >> $TMPFD/$AUDITFL
+#
+printf "\n%25s %5s\n" "FSTYPE" "Nos" >> $TMPFD/$AUDITFL
+for FSTYPE in $(ls /proc/fs)
+do
+  FSNOS=$(ls /proc/fs/$FSTYPE | wc -l)
+  printf "%25s %5s\n" "$FSTYPE" "$FSNOS" >> $TMPFD/$AUDITFL
+done 
+printf "%s\n" "jbd2 is all file systems that are using Journalising." >> $TMPFD/$AUDITFL
+#
+printf "\n%5s %s\n" " " "Filesystem      Size  Used Avail Use% Mounted-on"  >> $TMPFD/$AUDITFL
+awk ' { printf "%5s %s\n", " ", $0 } ' $TMPFD/$TMPFL3  >> $TMPFD/$AUDITFL
+#
+rm -f $TMPFD/$TMPFL1
+printf "\n%5s %-15s %12s %s\n" " " "FS" "Size " "Largest File/Folder"  >> $TMPFD/$AUDITFL
+for FSYS in $(awk ' { print $6 } ' $TMPFD/$TMPFL3)
+do
+  if [[ $FSYS != "/" ]] 
+     then
+     echo $FSYS >> $TMPFD/$TMPFL1
+     printf "%5s %-15s" " " "$FSYS" >> $TMPFD/$AUDITFL
+     du -a $FSYS 2>/dev/null | sort -gr -k1 | head -2 | grep -v $FSYS$ | awk ' { printf "%12s  %s\n", $1, $2 } ' >> $TMPFD/$AUDITFL
+  fi
+done
+printf "%5s %-15s" " " "/"  >> $TMPFD/$AUDITFL
+du -a --exclude-from=$TMPFD/$TMPFL1 / 2>/dev/null | sort -gr -k1 | head -2 | grep -v /$ | awk ' { printf "%12s  %s\n", $1, $2 } ' >> $TMPFD/$AUDITFL
+echo >> $TMPFD/$AUDITFL
+clear 
+cat $TMPFD/$AUDITFL
+if [[ "$1" == "-a" ]]; then
+   for FSYS in $( < $TMPFD/$TMPFL1)
+   do
+       printf "\n%5s\n" "5 largest files/folders from $FSYS" >> $TMPFD/$AUDITFL
+       du -a $FSYS 2>/dev/null | sort -gr -k1 | head -5 | grep -v $FSYS$ >> $TMPFD/$AUDITFL
+   done 
+fi
+##########################################################################
+cleanup
+echo
+exit 0
+##########################################################################
+# Main Program End
+##########################################################################
+

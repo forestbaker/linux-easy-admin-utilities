@@ -1,0 +1,72 @@
+#!/bin/bash
+##################################################################
+#
+# Script to generate a fairly complex password
+# 
+##################################################################
+#
+# Author: Bellamkonda Sudhakar
+# License: GNU GPL v3
+##################################################################
+Version=0.2
+License='GNU GPL V3'
+##################################################################
+function depchkerr {
+echo "Dep check error - $Deperr"
+}
+##################################################################
+function depchk {
+Depchk=0
+Deperr=''
+if [[ -z $(tr --version 2>/dev/null) ]]; then Depchk=1; Deperr='tr'; depchkerr; fi
+if [[ -z $(head --version 2>/dev/null) ]]; then Depchk=1; Deperr='head'; depchkerr; fi
+if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi 
+}
+###################################################################
+function uerror {
+printf "%s\n" "Not root"
+exit 1
+}
+##################################################################
+function numerr {
+printf "%s\n" "Numbers only"
+exit 1
+}
+##################################################################
+function usage {
+printf "\n%s\n" "Password Generator $Version - $License License"
+printf "\n%s" "pwgen <Option>"
+printf "\n%s" "Options:"
+printf "\n%5s%s" " " " n  where n can be a numeric between 9-32, when not given default is 8"
+printf "\n%5s%s" " " " e.g. ./pwgen 16"
+printf "\n%5s%s\n" " " "-h  displays this usage page"
+exit 0
+}
+#################################################################
+function pgen {
+PASSWORD=$(tr -dc A-Za-z0-9_ < /dev/urandom | head -c $Ln)
+printf "%s\n" "$PASSWORD"
+exit 0
+}
+##################################################################
+#Main Program
+##################################################################
+Ln=8
+#
+[[ $UID -ne 0 ]] && uerror
+#
+[[ "$1" == "-h" ]] && usage
+#
+[[ $# -eq 0 ]] && pgen 
+#
+if [ $1 -eq $1 2>/dev/null ]
+then
+    Ln=$1
+    [[ $1 -gt 32 ]] && Ln=32
+    [[ $1 -lt 8 ]]  && Ln=8
+    pgen 
+else
+    numerr
+    usage
+fi
+

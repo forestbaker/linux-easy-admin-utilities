@@ -1,0 +1,237 @@
+#!/bin/bash
+##################################################################
+#
+# Script to check / audit systems process using network resources
+# and report a detailed info from various system file, process and
+# outputs
+#
+##################################################################
+#
+# Author: Bellamkonda Sudhakar
+# License: GNU GPL v3
+##################################################################
+Version=0.2
+License='GNU GPL v3'
+###################################################################
+# Functions
+###################################################################
+function lpnt {
+for r in {1..80..1}
+do
+   printf "%c" $1
+done 
+printf "\n"
+}
+#
+###################################################################
+function cleanup {
+rm -f 2>/dev/null $CHKPID
+}
+###################################################################
+function create_workspace {
+mkdir $TMPFD
+}
+###################################################################
+function remove_workspace {
+rm -Rf 2>/dev/null $TMPFD
+}
+###################################################################
+function workspace {
+if [ -d $TMPFD ] 
+then
+    remove_workspace
+    create_workspace
+else
+    create_workspace
+fi
+}
+###################################################################
+function pause {
+echo -n "Press enter to continue..."
+read
+}
+###################################################################
+function line {
+echo >> $TMPFD/$AUDITFL
+}
+###################################################################
+function depchkerr {
+echo "Dep check error - $Deperr"
+}
+###################################################################
+function depchk {
+Depchk=0
+Deperr=''
+if [[ -z $(wc --version 2>/dev/null) ]]; then Depchk=1; Deperr='wc'; depchkerr; fi
+if [[ -z $(dmesg --version 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
+if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
+if [[ -z $(lspci 2>/dev/null) ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
+if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+if [[ -z $(grep -V 2>/dev/null) ]]; then Dechk=1; Deperr='grep'; depchkerr; fi 
+if [[ -z $(sed --version 2>/dev/null) ]]; then Depchk=1; Deperr='sed'; depchkerr; fi
+if [[ -z $(mount -V 2>/dev/null) ]]; then Depchk=1; Deperr='mount'; depchkerr; fi
+if [[ -z $(fdisk -v 2>/dev/null) ]]; then Depchk=1; Deperr='fdisk'; depchkerr; fi
+if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi 
+}
+###################################################################
+AUDITFL='diskaudit'
+CHKPID='/var/run/dskaudchk-ppid'
+TMPFD='/tmp/dfuadtchk'
+TMPFL1='tmpfl1'
+TMPFL2='tmpfl2'
+TMPFL3='tmpfl3'
+OPSYS=$(uname -o)
+OPKER=$(uname -s)
+OPKRL=$(uname -r)
+OPDST='Unknown'
+depchk
+workspace
+HSTNM=$AUDITFL
+MJR=${OPKRL:0:1}
+MIR=${OPKRL:2:1}
+HWRCTL=$(lspci | grep -iw "ide\|sata" | wc -l)
+CNTDSK=$(dmesg | grep -iw "ide\|sata" | grep -w "link up" | wc -l) 
+HDTYPE=0
+SDTYPE=0
+SDD=0
+HDD=0
+RCD=0
+SMD=0
+DA=(a b c d e f g h i j k l m n o p)
+###################################################################
+#Main Program Begin
+###################################################################
+if [[ $UID -ne 0 ]]
+then
+    echo
+    echo "No root previleges"
+    exit 1
+fi
+if [[ "$1" == "-c" ]]
+then
+   cleanup
+   echo "$0 PID files removed"
+   exit 0
+fi
+if [[ "$1" == "-h" ]]
+then
+    echo 
+    echo "Usage: "
+    echo "netadtchk"
+    echo "          -h Help"
+    echo "          -c Clear PID files"
+    echo "           no option prints the summery information to the stdout and into the /tmp/netadtchk/$AUDITFL file."
+    echo
+    exit 0
+fi
+if [[ -f $CHKPID ]] 
+then
+    echo " dfu Auditor running with PID $( < $CHKPID)"
+    echo " To clear the PID files use the -c option"    
+    exit 0
+else
+    echo $$ > $CHKPID
+fi
+#
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
+#
+T=$(ls -l /dev/hd[abcdefghijklmnop] 2>/dev/null | wc -l)
+if (( $T > 0 )) ; then HDTYPE=1; fi
+HDD=$(( HDD + T ))
+T=$(ls -l /dev/sd[abcdefghijklmnop] 2>/dev/null | wc -l)
+if (( $T > 0 )) ; then SDTYPE=1; fi
+SDD=$(( HDD + T ))
+TOTHD=$(( HDD + SDD ))
+T=$(ls -l /dev/sr[0-9] 2>/dev/null | wc -l)
+RCD=$(( RCD + T ))
+#
+printf "%25s %25s %15s %15s\n" "Hardware-Controllers" "Disk's at boot time" "HDD-Disks" "Removable-Disks" >> $TMPFD/$AUDITFL
+printf "%25s %25s %15s %15s\n\n" "$HWRCTL" "$CNTDSK" "$TOTHD" "$RCD"  >> $TMPFD/$AUDITFL
+#
+printf "%15s %12s %20s %8s\n" "DISK" "Capacity" "Partitions: Actual" "Mounted" >> $TMPFD/$AUDITFL
+
+if (( HDD > 0 )) ; then 
+   for (( i=0; i<HDD; i++ ))
+   do
+     DISK="hd${DA[$i]}"
+     DSKTMPFL="$DISK-file"
+     fdisk -l /dev/$DISK 2>/dev/null | grep $DISK >> $TMPFD/$DSKTMPFL
+     DISKCAP=$(grep "Disk /dev/$DISK" $TMPFD/$DSKTMPFL | awk ' { print $3, $4 } ' | sed 's/,//')
+     DPART=0
+     T=$(ls -l /dev/$DISK[0-9] 2>/dev/null | wc -l)
+     DPART=$(( DPART + T ))
+     T=$(ls -l /dev/$DISK[0-9][0-9] 2>/dev/null | wc -l)
+     DPART=$(( DPART + T ))
+     MPART=$(mount | grep /dev/$DISK 2>/dev/null | wc -l)
+     printf "%15s %12s %20s %8s\n" "$DISK" "$DISKCAP" "$DPART" "$MPART" >> $TMPFD/$AUDITFL
+   done
+fi
+#
+if (( SDD > 0 )) ; then
+   for (( i=0; i<SDD; i++ ))
+   do
+     DISK="sd${DA[$i]}"
+     DSKTMPFL="$DISK-file"
+     fdisk -l /dev/$DISK 2>/dev/null | grep $DISK >> $TMPFD/$DSKTMPFL
+     DISKCAP=$(grep "Disk /dev/$DISK" $TMPFD/$DSKTMPFL | awk ' { print $3, $4 } ' | sed 's/,//')
+     DPART=0
+     T=$(ls -l /dev/$DISK[0-9] 2>/dev/null | wc -l)
+     DPART=$(( DPART + T ))
+     T=$(ls -l /dev/$DISK[0-9][0-9] 2>/dev/null | wc -l)
+     DPART=$(( DPART + T ))
+     MPART=$(mount | grep -i /dev/$DISK 2>/dev/null | wc -l)
+     printf "%15s %12s %20s %8s\n" "$DISK" "$DISKCAP" "$DPART" "$MPART" >> $TMPFD/$AUDITFL
+   done
+fi
+DMD=$(grep -i md\*.*\*active /proc/mdstat | wc -l)
+MMD=$(mount | grep -i /dev/md | wc -l)
+printf "%15s %12s %20s %8s\n\n" " md" "-" "$DMD" "$MMD"  >> $TMPFD/$AUDITFL
+#
+FSWP=$(grep swap /etc/fstab | grep -v ^# | wc -l)
+DSWP=$(dmesg | grep swap\*.*\*dev | wc -l)
+PSWP=$(grep -iv "Filename\|Type\|Size" /proc/swaps 2>/dev/nell | wc -l)
+printf "%15s %20s %20s\n" "Swap-DISK" "Detected" "Current-Using" >> $TMPFD/$AUDITFL
+printf "%15s %20s %20s\n" "$FSWP" "$DSWP" "$PSWP" >> $TMPFD/$AUDITFL
+printf "%15s" "Swaps : "  >> $TMPFD/$AUDITFL
+awk ' { if( $1=="Filename" ) getline } { printf "%s ", $1 } ' /proc/swaps >> $TMPFD/$AUDITFL
+echo >> $TMPFD/$AUDITFL
+#
+printf "\n%15s %20s %20s\n" "Filesystem" "Detected" "Current-Using" >> $TMPFD/$AUDITFL
+for FS in `ls -l --full-time /proc/fs 2>/dev/null | awk ' { print $9 } '`
+do
+  CU="False"
+  UFS=$(ls -l /proc/fs/$FS 2>/dev/null | grep -iv total | wc -l)
+  if (( UFS > 0 )) ; then CU="True"; fi
+  printf "%15s %20s %20s\n" "$FS" "$UFS" "$CU" >> $TMPFD/$AUDITFL
+done
+#
+printf "\n%5s %s\n" " " "Filesystem      Size  Used Avail Use% Mounted-on" >> $TMPFD/$AUDITFL
+df -h | grep ^/dev/ > $TMPFD/$TMPFL1
+awk ' { printf "%5s %s\n", " ", $0 } ' $TMPFD/$TMPFL1 >> $TMPFD/$AUDITFL
+#
+clear
+cat $TMPFD/$AUDITFL
+#
+if (( HDD > 0 )) ; then 
+   echo > $TMPFD/$AUDITFL
+   cat $TMPFD/hd?-file >> $TMPFD/$AUDITFL
+fi
+if (( SDD > 0 )) ; then 
+   echo > $TMPFD/$AUDITFL
+   cat $TMPFD/sd?-file >> $TMPFD/$AUDITFL
+fi
+printf "\n%s\n" "Additional information along with the above data is stored at $TMPFD/$AUDITFL"
+##########################################################################
+cleanup
+echo
+exit 0
+##########################################################################
+# Main Program End
+##########################################################################
+

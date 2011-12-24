@@ -1,0 +1,330 @@
+#!/bin/bash
+##################################################################
+#
+# Script to check / audit systems process using network resources
+# and report a detailed info from various system file, process and
+# outputs
+#
+##################################################################
+#
+# Author: Bellamkonda Sudhakar
+# License: GNU GPL v3
+##################################################################
+Version=0.6
+License='GNU GPL v3'
+##################################################################
+function create_workspace {
+mkdir $TMPFD
+}
+###################################################################
+function remove_workspace {
+rm -Rf $TMPFD
+}
+###################################################################
+function workspace {
+if [ -d $TMPFD ] 
+then
+    remove_workspace
+    create_workspace
+else
+    create_workspace
+fi
+}
+###################################################################
+# Functions
+function lpnt {
+for r in {1..80..1}
+do
+   printf "%c" $1
+done 
+printf "\n"
+}
+#
+###################################################################
+function cleanup {
+rm -f $CHKPID
+rm -f $FLWPID
+}
+###################################################################
+function pause {
+echo -n "Press enter to continue..."
+read
+}
+###################################################################
+function line {
+echo >> $TMPFD/$AUDITFL
+}
+###################################################################
+function depchkerr {
+echo "Dep check error - $Deperr"
+}
+###################################################################
+function depchk {
+Depchk=0
+Deperr=''
+if [[ $(which which 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='which'; depchkerr; fi
+if [[ $(netstat 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
+if [[ $(lspci 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
+if [[ $(lsof 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='lsof'; depchkerr; fi
+if [[ $(ip -d link 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
+if [[ $(ss 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ss'; depchkerr; fi
+if [[ $(ifconfig 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ifconfig'; depchkerr; fi
+if [[ $(awk --version 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+if [[ $(grep -V 2>/dev/null | wc -l) -eq 0 ]]; then Dechk=1; Deperr='grep'; depchkerr; fi 
+if [[ $(sed --version 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='sed'; depchkerr; fi
+if [[ $(sort --version 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='sort'; depchkerr; fi
+if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi 
+}
+###################################################################
+function usage {
+echo
+echo 'Linux Network Auditor and Checker Version $Version - $License License
+Usage: 
+    netadtchk [ -h | -a | -c ]
+   -a All
+   -h Help
+   -c Clear PID files
+    no option prints the summery information to the stdout and into the /tmp/netadtchk/$AUDITFL file.'
+echo
+exit 0
+}
+###################################################################
+#Data
+AUDITFL=$(hostname -s)
+CHKPID='/var/run/netaudchk-ppid'
+FLWPID='/var/run/netaudchk-fpid'
+TMPFD='/tmp/netadtchk'
+TMPFL1='tmpfl1'
+TMPFL2='tmpfl2'
+TMPFL3='tmpfl3'
+OPSYS=$(uname -o)
+OPKER=$(uname -s)
+OPKRL=$(uname -r)
+OPDST='Unknown'
+HSTNM=$AUDITFL
+FLTC='tcpflen'
+FWTSTIN='fwtest.in'
+FETSTOUT='fwtest.out'
+#
+depchk
+workspace
+$(ip -d link | grep  '^[0-9]*: ' >> $TMPFD/$TMPFL3)
+$(ip -d addr >> $TMPFD/$TMPFL2)
+HNIC=$(lspci | grep -ic ethernet)
+VNIC=$(grep -cv 'lo\|eth' $TMPFD/$TMPFL3)
+LNIC=$(grep -c 'lo' $TMPFD/$TMPFL3)
+TNIC=$(( HNIC + VNIC + LNIC ))
+IP4E=$(grep -ic inet $TMPFD/$TMPFL2)
+IP6E=$(grep -ic inet6 $TMPFD/$TMPFL2)
+#
+TTCP=$(ss -t | wc -l)
+TTCPL=$(ss -t -l | wc -l)
+TTCPC=$(ss -t -a | wc -l)
+IPFW=$( < /proc/sys/net/ipv4/ip_forward)
+IPMQ=$( < /proc/sys/net/ipv4/ip_dynaddr)
+IPPROC=''
+MJR=${OPKRL:0:1}
+MIR=${OPKRL:2:1}
+FWILBIN='None'
+FWON='Off'
+FWIN='False'
+FWOT='False'
+FWFW='False'
+FWMQ='False'
+NMSR=$(awk ' /nameserver/ { print $2; exit } ' /etc/resolv.conf )
+DFGW=$(ip route | grep default | sed 's/default\|proto\|static//g')
+###################################################################
+#Main Program
+echo 
+#if [[ $UID -ne 0 ]]
+if (( UID ))
+then
+    echo
+    echo "No root previleges"
+    exit 1
+fi
+if [[ -n $1 ]] ; then
+  case "$1"  in 
+      -a ) ;;    
+      -c ) cleanup
+           echo "PID files removed"
+           exit 0
+           ;;
+      -h ) usage
+           exit 0
+           ;;
+       * ) echo "Invalid Option try netadtchk -h, for now continuing with no option"
+           pause
+           ;;
+  esac
+fi
+#
+if [ -f $CHKPID ] 
+then
+    echo " Net Auditor running with PID `cat $CHKPID`"
+    echo " To clear the PID files use the -c option"    
+    exit 1
+else
+    echo $$ > $CHKPID
+fi
+#
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
+#
+case "$MJR" in
+    "2" )
+        case "$MIR" in
+             "0" | "1" )
+                 FWILBIN='ipfwadm';
+                 IPPROC='ip_[mfp][ao][rs][wqt][qha]*';;
+             "2" | "3" )
+                 FWILBIN='ipchains';
+                 IPPROC='ip_[fm][wa][cns]*';;
+             * ) 
+                 FWILBIN='iptables';
+                 IPPROC='ip_tables*';;
+        esac;;
+    "3" )
+      FWILBIN='iptables';
+      IPPROC='ip_table*';;
+    * )
+      FWILBIN='Unknown';;
+esac
+[[ $IP4E ]] && IPV='IPV4'
+[[ $IP6E ]] && IPV=$IPV'/IPV6'
+FWILPROC1=$(ls /proc/net/$IPPROC 2>/dev/null | grep -c ip_tables)
+FWILPROC2=$(which $FWILBIN 2>/dev/null | grep -c $FWILBIN)
+if [ $FWILPROC1 -ne 0 -a $FWILPROC2 -ne 0 ] ; then FWILSTAT="IP_Tables"; else FWILSTAT="None"; fi
+#
+if [ $FWILBIN == "iptables" ]
+then
+    $FWILBIN -L | grep -i chain > $TMPFD/$TMPFL1
+    for C in `awk ' { print $2 } ' $TMPFD/$TMPFL1`
+    do
+      if [ $C == "INPUT" ]  
+      then
+          if [ `$FWILBIN -L $C | grep -wc 'all\|tcp\|udp'` -gt 0 ] ; then FWIN="True"; fi
+      fi
+      if [ $C == "OUTPUT" ]
+      then
+          if [ `$FWILBIN -L $C | grep -wc 'all\|tcp\|udp'` -gt 0 ] ; then FWOT="True"; fi
+      fi
+      if [ $C == "FORWARD" ]
+      then
+          if [ `$FWILBIN -L $C | grep -wc 'all\|tcp\|udp'` -gt 0 ] ; then FWFW="True"; fi
+      fi
+    done
+fi
+#
+FWR=$($FWILBIN -L | sed '/^$/d' | grep -iv chain | grep -ivc "target\|source\|destination")
+##if [ $FWR -gt 0 -a $FWIN == "True" ] ; then FWON="On"; fi
+[[ $FWR -gt 0 ]] && [[ $FWIN == "True" ]] && FWON='On'
+#
+printf "%12s %12s %15s %20s %15s %9s %16s\n" "Hostname" "OS" "Kernel" "Release" "Distribution" "IPV" "Netadtchk" >> $TMPFD/$AUDITFL
+printf "%12s %12s %15s %20s %15s %9s %16s\n\n" "$AUDITFL" "$OPSYS" "$OPKER" "$OPKRL" "$OPDST" "$IPV" "$License-v$Version" >> $TMPFD/$AUDITFL
+#
+printf "%15s%12s%20s%20s %25s\n" "FW Binary" "Forwarding" "Masquerading" "1st Name Srv" "Default Gateway" >> $TMPFD/$AUDITFL
+printf "%15s%12s%20s%20s %25s\n\n" "$FWILBIN" "$IPFW" "$IPMQ" "$NMSR" "$DFGW" >> $TMPFD/$AUDITFL
+#
+printf "%14s%14s%14s%14s%14s\n" "FW Status" "FW In" "FW Out" "FW Forward" "FW Masq" >> $TMPFD/$AUDITFL
+printf "%14s%14s%14s%14s%14s\n" "$FWON" "$FWIN" "$FWOT" "$FWFW" "$FWMQ" >> $TMPFD/$AUDITFL
+#
+printf "\n%15s %15s %20s\n" "Type" "Name" "IP Details" >> $TMPFD/$AUDITFL
+for Nd in $(awk -F ":" ' { print $2 } ' $TMPFD/$TMPFL3 ) 
+do
+   case "$Nd" in 
+        "lo" )
+            TYPE="Loopback";;
+        "eth0" | "eth1" | "eth2" | "eth3" | "eth4" | "eth5" )
+            TYPE="Hardware";;
+        * )
+            TYPE="Virtual/Other"
+   esac 
+   IPDET=$(ifconfig $Nd | grep -w "inet")
+   printf "%15s %15s %s\n" "$TYPE" "$Nd" "$IPDET" >> $TMPFD/$AUDITFL
+done
+printf "  %s %s\n" "Total Network Interfaces" "$TNIC" >> $TMPFD/$AUDITFL
+line
+echo "Routes:" >> $TMPFD/$AUDITFL
+netstat -rn  | grep -v 'Kernel IP' >> $TMPFD/$AUDITFL
+line
+if [ $OPDST == "Fedora" ] ; then
+ss -nl4 | awk ' { print $4 } ' | grep -iv local | sed 's/*/0.0.0.0/g' > $TMPFD/$TMPFL1
+ss -nl6 | awk ' { print $4 } ' | grep -iv local | sed 's/\(.*\)\:/\1 /' > $TMPFD/$TMPFL2
+else 
+ss -nl4 | awk ' { print $3 } ' | grep -iv local | sed 's/*/0.0.0.0/g' > $TMPFD/$TMPFL1
+ss -nl6 | awk ' { print $3 } ' | grep -iv local | sed 's/\(.*\)\:/\1 /' > $TMPFD/$TMPFL2
+fi
+sed -i 's/\:/ /g' $TMPFD/$TMPFL1
+sort $TMPFD/$TMPFL1 > $TMPFD/$TMPFL3
+sort $TMPFD/$TMPFL2 >> $TMPFD/$TMPFL3
+echo "This system has $(( $TTCPL - 1 )) Listening Sockets (IPv4/IPv6) at TCP/Ports: " >> $TMPFD/$AUDITFL
+cp $TMPFD/$TMPFL3 $TMPFD/$FLTC
+rm -f $TMPFD/$TMPFL3
+#
+for P in $(awk ' { print $2 } ' $TMPFD/$FLTC)
+do
+   PP=$PP$P,
+   lsof -i tcp:$P | grep LISTEN | awk -v P=$P -v TMPFL=$TMPFD/$TMPFL3 ' { printf " %12s %12s %20s\n", P, $1, $2 >> TMPFL } '
+done
+echo "$PP details" >> $TMPFD/$AUDITFL
+sort -g -k3 $TMPFD/$TMPFL3 > $TMPFD/$TMPFL2
+awk -v TMPFL3=$TMPFD/$TMPFL3 ' BEGIN { }
+            { if(cf != $2)
+              printf "%12s %12s %20s\n", $1, $2, $3 > TMPFL3
+              cf = $2 }
+      END { } ' $TMPFD/$TMPFL2 
+line
+lsof -i tcp:$PP | grep LISTEN | sort -d > $TMPFD/$TMPFL2
+awk -v TMPFL1=$TMPFD/$TMPFL1 ' BEGIN { }
+            { if(cf != $1)
+              print $1, $2, $9 > TMPFL1
+              cf = $1 }
+            END { } ' $TMPFD/$TMPFL2 
+printf "%5s %10s %8s %30s %20s %s\n" "PID" "Process" "Port" "As per /proc" "As per Which" "Working Dir" >> $TMPFD/$AUDITFL
+for ID in $(awk ' { print $2 } ' $TMPFD/$TMPFL1)
+do
+    PROCEXE=$(ls -l --full-time /proc/$ID/exe | awk ' { print $11 } ')
+    PROCPWS=$(ls -l --full-time /proc/$ID/cwd | awk ' { print $11 } ')
+    PROC=$(awk -v P=$ID ' { if (P == $2) print $1 } ' $TMPFD/$TMPFL1)
+    WPROC=$(which 2>/dev/null $PROC)
+    P=$(awk -v ID=$ID ' BEGIN { } { if (ID == $3) print $1 } END { } ' $TMPFD/$TMPFL3)
+    printf "%5s %10s %8s %30s %20s %s\n" "$ID" "$PROC" "$P" "-$PROCEXE" "-$WPROC" "-$PROCPWS" >> $TMPFD/$AUDITFL
+done
+line
+netstat -tulnp | grep LISTEN | awk ' { print $4, $7 } ' | sed 's/\(.*\)\:/\1 /' | sed 's/\// /g' > $TMPFD/$TMPFL1
+printf "%20s %8s %8s %20s\n" "IP" "PORT" "PID" "PROCESS" >> $TMPFD/$AUDITFL
+awk ' {  printf "%20s %8s %8s %20s\n", $1, $2, $3, $4 } ' $TMPFD/$TMPFL1 >> $TMPFD/$AUDITFL
+line
+lpnt "#" >> $TMPFD/$AUDITFL
+##################################################################
+## Print details from Audit file
+clear
+cat $TMPFD/$AUDITFL
+echo "Complete Information is stored at $TMPFD/$AUDITFL. netadtchk -a will print more information about your system"
+if [ "$1" == "-a" ] 
+then
+    echo "All TCP Listening Process Details" >> $TMPFD/$AUDITFL
+    netstat -tunlp | grep -v udp >> $TMPFD/$AUDITFL
+    line
+    echo "ALL UDP Listening Process Details" >> $TMPFD/$AUDITFL
+    netstat -tunlp | grep -v tcp >> $TMPFD/$AUDITFL
+    line
+    echo "Current established connections - NETSTAT" >> $TMPFD/$AUDITFL
+    netstat -tunap >> $TMPFD/$AUDITFL
+    line
+    echo "Current established connections - SS" >> $TMPFD/$AUDITFL
+    ss -o state established >> $TMPFD/$AUDITFL
+    line
+    lpnt "#" >> $TMPFD/$AUDITFL
+fi
+#
+cleanup
+exit 0
+#
+###################################################################
