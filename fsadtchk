@@ -113,8 +113,10 @@ fi
 if [[ "$1" == "-h" ]]
 then
     echo
+    echo "Linux Easy Admin Utilities FileSystem Checker Version $Version - $License License"
+    echo 'Author: Bellamkonda Sudhakar'
     echo "Usage: "
-    echo "fsadtchk [option]"
+    echo "fsadtchk [ -a | -h | -c ]"
     echo "          -a All"
     echo "          -h Help"
     echo "          -c Clear PID files"

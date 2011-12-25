@@ -11,6 +11,7 @@
 # License: GNU GPL v3
 ##################################################################
 Version=0.1
+LEAUVersion=0.1
 License='GNU GPL v3'
 ##################################################################
 # Functions
@@ -51,10 +52,11 @@ if [[ $Depchk -eq 1 ]]; then exit 1; fi
 ###################################################################
 function usage {
 echo
-echo 'Linux Network Auditor and Checker Version $Version - $License License
+echo "Linux Easy Admin Utilities Dependency Checker Version $Version - $License License
+Author: Bellamkonda Sudhakar
 Usage: 
     adtdepchk [ -h ]
-   -h Help'
+   -h Help"
 echo
 exit 0
 }
@@ -63,7 +65,6 @@ exit 0
 ###################################################################
 #Main Program
 ###################################################################
-echo 
 if (( UID ))
 then
     echo
@@ -71,9 +72,12 @@ then
     exit 1
 fi
 #
-echo "Easy Admin Utilities Version $Version - $License License"
+if [[ "$1" == "-h" ]] ; then usage ; fi
+#
+echo
+echo "Linux Easy Admin Utilities Dependency Checker Version $Version - $License License
+Author: Bellamkonda Sudhakar"
 depchk
-
 echo
 echo "No Dependency error found"
 echo

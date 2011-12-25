@@ -10,6 +10,7 @@
 # Author: Bellamkonda Sudhakar
 # License: GNU GPL v3
 ##################################################################
+LEAUVersion=0.1
 Version=0.6
 License='GNU GPL v3'
 ##################################################################
@@ -78,13 +79,14 @@ if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi
 ###################################################################
 function usage {
 echo
-echo 'Linux Network Auditor and Checker Version $Version - $License License
+echo "Linux Easy Admin Utilities Network Checker Version $Version - $License License"
+echo 'Author: Bellamkonda Sudhakar
 Usage: 
-    netadtchk [ -h | -a | -c ]
-   -a All
-   -h Help
-   -c Clear PID files
-    no option prints the summery information to the stdout and into the /tmp/netadtchk/$AUDITFL file.'
+netadtchk [ -h | -a | -c ]
+            -a All
+            -h Help
+            -c Clear PID files'
+echo "No option prints the summery information to the stdout and into the $TMPFD/$AUDITFL file."
 echo
 exit 0
 }

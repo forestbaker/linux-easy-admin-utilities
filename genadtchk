@@ -10,7 +10,7 @@
 # License: GNU GPL v3
 ##################################################################
 Version=0.1
-EAVersion=0.1
+LEAUVersion=0.1
 License='GNU GPL v3'
 ##################################################################
 # Functions
@@ -51,11 +51,12 @@ if [[ $Depchk -eq 1 ]]; then exit 1; fi
 ##################################################################
 function usage {
 echo
-echo 'Linux Network Auditor and Checker Version $Version - $License License
+echo "Linux Easy Admin Utilities General System Checker Version $Version - $License License"
+echo 'Author: Bellamkonda Sudhakar
 Usage: 
-    genadtchk [ -h ]
-   -h Help
-   -c Remoce PID files'
+genadtchk [ -h | -c ]
+            -h Help
+            -c Remove PID files'
 echo
 exit 0
 }

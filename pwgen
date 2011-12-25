@@ -8,6 +8,7 @@
 # Author: Bellamkonda Sudhakar
 # License: GNU GPL v3
 ##################################################################
+LEAUVersion=0.1
 Version=0.2
 License='GNU GPL V3'
 ##################################################################
@@ -34,11 +35,13 @@ exit 1
 }
 ##################################################################
 function usage {
+echo "Linux Easy Admin Utilities Password Generator Version $LEAUVersion - $License License
+Author: Bellamkonda Sudhakar"
 printf "\n%s\n" "Password Generator $Version - $License License"
-printf "\n%s" "pwgen <Option>"
+printf "\n%s" "pwgen [ n ]"
 printf "\n%s" "Options:"
 printf "\n%5s%s" " " " n  where n can be a numeric between 9-32, when not given default is 8"
-printf "\n%5s%s" " " " e.g. ./pwgen 16"
+printf "\n%5s%s" " " " e.g. pwgen 16"
 printf "\n%5s%s\n" " " "-h  displays this usage page"
 exit 0
 }
