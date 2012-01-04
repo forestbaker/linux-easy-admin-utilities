@@ -10,11 +10,24 @@
 # License: GNU GPL v3
 ##################################################################
 Version=0.1
-LEAUVersion=0.1
+UVersion=0.2
 License='GNU GPL v3'
 ##################################################################
 # Functions
 ##################################################################
+function distribution {
+OPDST='Unknown'
+[[ $(echo ${BASH_VERSINFO[@]} | grep -c "slackware") ]] && OPDST='Slackware'
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu'
+echo "$OPDST" 
+}
+###################################################################
 function depchkerr {
 echo
 echo "Dep check error - $Deperr"
@@ -25,7 +38,7 @@ function depchk {
 Depchk=0
 Deperr=''
 if [[ -z $(wc --version 2>/dev/null) ]]; then Depchk=1; Deperr='wc'; depchkerr; fi
-if [[ -z $(dmesg --version 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
+if [[ -z $(dmesg 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
 if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
 if [[ -z $(lspci 2>/dev/null) ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
 if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
@@ -40,7 +53,7 @@ if [[ -z $(head --version 2>/dev/null) ]]; then Depchk=1; Deperr='head'; depchke
 if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
 if [[ -z $(netstat 2>/dev/null) ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
 if [[ -z $(lsof 2>/dev/null) ]]; then Depchk=1; Deperr='lsof'; depchkerr; fi
-if [[ -z $(ip -d link 2>/dev/null) ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
+if [[ -z $(ip -V 2>/dev/null) ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
 if [[ -z $(ss 2>/dev/null) ]]; then Depchk=1; Deperr='ss'; depchkerr; fi
 if [[ -z $(ifconfig 2>/dev/null) ]]; then Depchk=1; Deperr='ifconfig'; depchkerr; fi
 if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
@@ -51,22 +64,32 @@ if [[ $Depchk -eq 1 ]]; then exit 1; fi
 ##################################################################
 function usage {
 echo
-echo "Linux Easy Admin Utilities General System Checker Version $Version - $License License"
+echo "Linux Easy Admin Utilities General System Auditor Version $Version - $License License"
 echo 'Author: Bellamkonda Sudhakar
 Usage: 
-genadtchk [ -h | -c ]
+genadtchk [ -h | -c | -v ]
             -h Help
-            -c Remove PID files'
+            -c Remove PID files
+            -v Version'
+echo
+exit 0
+}
+###################################################################
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "General Sysytem Auditor $Version"
+echo 'Author: Bellamkonda Sudhakar'
 echo
 exit 0
 }
 ##################################################################
 function create_workspace {
-mkdir $TMPFD
+mkdir $TMPFD 2>/dev/null 
 }
 ##################################################################
 function remove_workspace {
-rm -Rf $TMPFD
+rm -Rf $TMPFD 2>/dev/null
 }
 ##################################################################
 function workspace {
@@ -79,7 +102,6 @@ else
 fi
 }
 ##################################################################
-# Functions
 function lpnt {
 for r in {1..80..1}
 do
@@ -90,6 +112,9 @@ printf "\n"
 ##################################################################
 function cleanup {
 rm -f $CHKPID
+echo
+echo "PID files removed"
+exit 0
 }
 ##################################################################
 function pause {
@@ -99,6 +124,16 @@ read
 ##################################################################
 function line {
 echo >> $TMPFD/$AUDITFL
+}
+##################################################################
+function idchk {
+echo 
+if (( UID ))
+then
+    echo
+    echo "No root previleges"
+    exit 1
+fi
 }
 ##################################################################
 #Data
@@ -113,14 +148,15 @@ TMPFL3='tmpfl3'
 OPSYS=$(uname -o)
 OPKER=$(uname -s)
 OPKRL=$(uname -r)
-OPDST='Unknown'
+OPDST=$(distribution)
 HSTNM=$( < /proc/sys/kernel/hostname )
 DOMAIN=$( < /proc/sys/kernel/domainname ) 
 #
 depchk
 workspace
-$(ip -d link | grep  '^[0-9]*: ' >> $TMPFD/$TMPFL3)
-$(ip -d addr >> $TMPFD/$TMPFL2)
+$(ip -d link | grep  '^[0-9]*: ' > $TMPFD/$TMPFL3)
+[[ "$OPDST" == "Sackware" ]] && $(ip -f link addr | grep  '^[0-9]*: ' > $TMPFD/$TMPFL3)
+$(ip -d addr > $TMPFD/$TMPFL2)
 HNIC=$(lspci | grep -ic ethernet)
 VNIC=$(grep -cv 'lo\|eth' $TMPFD/$TMPFL3)
 LNIC=$(grep -c 'lo' $TMPFD/$TMPFL3)
@@ -144,8 +180,9 @@ FWFW='False'
 FWMQ='False'
 NMSR=$(awk ' /nameserver/ { print $2; exit } ' /etc/resolv.conf )
 DFGW=$(ip route | grep default | sed 's/default\|proto\|static//g')
-HWRCTL=$(lspci | grep -iw "ide\|sata" | wc -l)
-CNTDSK=$(dmesg | grep -iw "ide\|sata" | grep -w "link up" | wc -l) 
+HWRCTL=$(lspci | grep -iw "ide\|sata\|ata\|scsi" | wc -l)
+CNTDSK=$(dmesg | grep -iw "ide\|sata\|scsi\|ata" | grep -w "link up" | wc -l) 
+[[ "$OPDST" == "Slackware" ]] && CNTDSK=$(dmesg | grep -iw "ide\|sata\|ata\|scsi" | grep -w "ATA" | wc -l) 
 HDTYPE=0
 SDTYPE=0
 SDD=0
@@ -159,20 +196,17 @@ PROCFS=$(ls /proc/fs)
 ##################################################################
 #Main Program
 ##################################################################
-echo 
-if (( UID ))
-then
-    echo
-    echo "No root previleges"
-    exit 1
-fi
+clear
 if [[ -n $1 ]] ; then
   case "$1"  in 
-      -c ) cleanup
-           echo "PID files removed"
+      -c ) idchk
+           cleanup
            exit 0
            ;;
       -h ) usage
+           exit 0
+           ;;
+      -v ) version
            exit 0
            ;;
        * ) echo "Invalid Option try genadtchk -h, for now continuing with no option"
@@ -180,23 +214,16 @@ if [[ -n $1 ]] ; then
            ;;
   esac
 fi
+idchk
 #
 if [ -f $CHKPID ] 
 then
-    echo " Net Auditor running with PID $( < $CHKPID)"
+    echo " General Auditor running with PID $( < $CHKPID)"
     echo " To clear the PID files use the -c option"    
     exit 1
 else
     echo $$ > $CHKPID
 fi
-#
-[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
-[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
-[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
-[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
-[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
-[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
-[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
 #
 case "$MJR" in
     "2" )
@@ -250,7 +277,7 @@ printf "%12s %15s %20s %16s\n" "OS" "Kernel" "Release" "Distribution" >> $TMPFD/
 printf "%12s %15s %20s %16s\n\n" "$OPSYS" "$OPKER" "$OPKRL" "$OPDST" >> $TMPFD/$AUDITFL
 #
 printf "%25s %25s %20s\n" "Hostname" "Domain" "EasyAdmin Utilites" >> $TMPFD/$AUDITFL
-printf "%25s %25s %20s\n\n"  "$HSTNM" "$DOMAIN" "$License-v$EAVersion" >> $TMPFD/$AUDITFL
+printf "%25s %25s %20s\n\n"  "$HSTNM" "$DOMAIN" "$License-v$UVersion" >> $TMPFD/$AUDITFL
 #
 printf "%15s%12s%20s%20s %25s\n" "Net Interfaces" "Forwarding" "Masquerading" "1st Name Srv" "Default Gateway" >> $TMPFD/$AUDITFL
 printf "%15s%12s%20s%20s %25s\n\n" "$TNIC" "$IPFW" "$IPMQ" "$NMSR" "$DFGW" >> $TMPFD/$AUDITFL
@@ -319,11 +346,11 @@ free -m > $TMPFD/$TMPFL1
 echo >> $TMPFD/$AUDITFL
 printf "%s\n" "Type     Total(Mb)       Used       Free     Shared    Buffers     Cached" >> $TMPFD/$AUDITFL
 grep -iv 'total\|free\|used\|shared\|buffers\|cache' $TMPFD/$TMPFL1 >> $TMPFD/$AUDITFL
-echo >> $TMPFD/$AUTITFL
+echo >> $TMPFD/$AUDITFL
 grep -iv 'total\|free\|used\|shared\|mem\|swap' $TMPFD/$TMPFL1 >> $TMPFD/$AUDITFL
 echo >> $TMPFD/$AUDITFL
 #
-clear
 cat $TMPFD/$AUDITFL
-cleanup
+cleanup 1>/dev/null
+echo "done over"
 ##################################################################

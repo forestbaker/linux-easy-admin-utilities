@@ -11,7 +11,7 @@
 # License: GNU GPL v3
 ##################################################################
 Version=0.1
-LEAUVersion=0.1
+UVersion=0.2
 License='GNU GPL v3'
 ##################################################################
 # Functions
@@ -25,46 +25,89 @@ echo
 function depchk {
 Depchk=0
 Deperr=''
+echo "Checking ..."
+echo "wc "
 if [[ -z $(wc --version 2>/dev/null) ]]; then Depchk=1; Deperr='wc'; depchkerr; fi
-if [[ -z $(dmesg --version 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
+echo "dmesg "
+if [[ -z $(dmesg 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
+echo "which "
 if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
+echo "lspci "
 if [[ -z $(lspci 2>/dev/null) ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
+echo "awk "
 if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+echo "grep "
 if [[ -z $(grep -V 2>/dev/null) ]]; then Dechk=1; Deperr='grep'; depchkerr; fi 
+echo "sed "
 if [[ -z $(sed --version 2>/dev/null) ]]; then Depchk=1; Deperr='sed'; depchkerr; fi
+echo "mount "
 if [[ -z $(mount -V 2>/dev/null) ]]; then Depchk=1; Deperr='mount'; depchkerr; fi
+echo "fdisk "
 if [[ -z $(fdisk -v 2>/dev/null) ]]; then Depchk=1; Deperr='fdisk'; depchkerr; fi
+echo "du "
 if [[ -z $(du --version 2>/dev/null) ]]; then Depchk=1; Deperr='du'; depchkerr; fi
+echo "df "
 if [[ -z $(df --version 2>/dev/null) ]]; then Depchk=1; Deperr='df'; depchkerr; fi
+echo "sort "
 if [[ -z $(sort --version 2>/dev/null) ]]; then Depchk=1; Deperr='sort'; depchkerr; fi
+echo "head "
 if [[ -z $(head --version 2>/dev/null) ]]; then Depchk=1; Deperr='head'; depchkerr; fi
-if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
-if [[ -z $(netstat 2>/dev/null) ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
+echo "netstat "
+if [[ -z $(netstat --version 2>/dev/null) ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
+echo "lsof "
 if [[ -z $(lsof 2>/dev/null) ]]; then Depchk=1; Deperr='lsof'; depchkerr; fi
-if [[ -z $(ip -d link 2>/dev/null) ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
+echo "ip "
+if [[ -z $(ip -V 2>/dev/null) ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
+echo "ss "
 if [[ -z $(ss 2>/dev/null) ]]; then Depchk=1; Deperr='ss'; depchkerr; fi
+echo "ifconfig "
 if [[ -z $(ifconfig 2>/dev/null) ]]; then Depchk=1; Deperr='ifconfig'; depchkerr; fi
-if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+echo "tr "
 if [[ -z $(tr --version 2>/dev/null) ]]; then Depchk=1; Deperr='tr'; depchkerr; fi
+echo "free "
 if [[ -z $(free -V 2>/dev/null) ]]; then Depchk=1; Deperr'free'; depchkerr; fi
 if [[ $Depchk -eq 1 ]]; then exit 1; fi 
+echo "Over"
 }
 ###################################################################
-function usage {
+function version {
 echo
-echo "Linux Easy Admin Utilities Dependency Checker Version $Version - $License License
-Author: Bellamkonda Sudhakar
-Usage: 
-    adtdepchk [ -h ]
-   -h Help"
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "File Sysytem Checker $Version"
+echo 'Author: Bellamkonda Sudhakar'
 echo
 exit 0
 }
 ###################################################################
-#Data
+function usage {
+echo
+echo "Linux Easy Admin Utilities Dependency Checker Version $Version - $License License"
+echo 'Author: Bellamkonda Sudhakar
+Usage: 
+    adtdepchk [ -h | -v ]
+   -h Help
+   -v Version'
+echo
+exit 0
+}
+###################################################################
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "Depedency Checker $Version"
+echo 'Author: Bellamkonda Sudhakar'
+echo
+exit 0
+}
+
 ###################################################################
 #Main Program
 ###################################################################
+clear
+#
+if [[ "$1" == "-h" ]] ; then usage ; fi
+if [[ "$1" == "-v" ]] ; then version ; fi
+#
 if (( UID ))
 then
     echo
@@ -72,13 +115,11 @@ then
     exit 1
 fi
 #
-if [[ "$1" == "-h" ]] ; then usage ; fi
-#
 echo
 echo "Linux Easy Admin Utilities Dependency Checker Version $Version - $License License
 Author: Bellamkonda Sudhakar"
-depchk
 echo
+depchk
 echo "No Dependency error found"
 echo
 exit 0

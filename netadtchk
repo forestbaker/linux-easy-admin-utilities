@@ -10,9 +10,25 @@
 # Author: Bellamkonda Sudhakar
 # License: GNU GPL v3
 ##################################################################
-LEAUVersion=0.1
+UVersion=0.2
 Version=0.6
 License='GNU GPL v3'
+##################################################################
+# Functions
+##################################################################
+function distribution {
+OPDST='Unknown'
+[[ $(echo ${BASH_VERSINFO[@]} | grep -c "slackware") ]] && OPDST='Slackware'
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu'
+echo "$OPDST" 
+}
+
 ##################################################################
 function create_workspace {
 mkdir $TMPFD
@@ -32,7 +48,6 @@ else
 fi
 }
 ###################################################################
-# Functions
 function lpnt {
 for r in {1..80..1}
 do
@@ -64,10 +79,10 @@ function depchk {
 Depchk=0
 Deperr=''
 if [[ $(which which 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='which'; depchkerr; fi
-if [[ $(netstat 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
+if [[ $(netstat --version 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
 if [[ $(lspci 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
 if [[ $(lsof 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='lsof'; depchkerr; fi
-if [[ $(ip -d link 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
+if [[ $(ip -V 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
 if [[ $(ss 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ss'; depchkerr; fi
 if [[ $(ifconfig 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='ifconfig'; depchkerr; fi
 if [[ $(awk --version 2>/dev/null | wc -l) -eq 0 ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
@@ -79,19 +94,30 @@ if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi
 ###################################################################
 function usage {
 echo
-echo "Linux Easy Admin Utilities Network Checker Version $Version - $License License"
+echo "Linux Easy Admin Utilities Network Auditor Version $Version - $License License"
 echo 'Author: Bellamkonda Sudhakar
 Usage: 
-netadtchk [ -h | -a | -c ]
+netadtchk [ -h | -a | -c  | -v ]
             -a All
             -h Help
-            -c Clear PID files'
+            -c Clear PID files
+            -v Version'
 echo "No option prints the summery information to the stdout and into the $TMPFD/$AUDITFL file."
 echo
 exit 0
 }
 ###################################################################
-#Data
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "Network Auditor $Version"
+echo 'Author: Bellamkonda Sudhakar'
+echo
+exit 0
+}
+###################################################################
+# Data
+###################################################################
 AUDITFL=$(hostname -s)
 CHKPID='/var/run/netaudchk-ppid'
 FLWPID='/var/run/netaudchk-fpid'
@@ -102,7 +128,7 @@ TMPFL3='tmpfl3'
 OPSYS=$(uname -o)
 OPKER=$(uname -s)
 OPKRL=$(uname -r)
-OPDST='Unknown'
+OPDST=$(distribution)
 HSTNM=$AUDITFL
 FLTC='tcpflen'
 FWTSTIN='fwtest.in'
@@ -111,6 +137,7 @@ FETSTOUT='fwtest.out'
 depchk
 workspace
 $(ip -d link | grep  '^[0-9]*: ' >> $TMPFD/$TMPFL3)
+[[ "$OPDST" == "Slackware" ]] && $(ip -f link addr | grep  '^[0-9]*: ' >> $TMPFD/$TMPFL3)
 $(ip -d addr >> $TMPFD/$TMPFL2)
 HNIC=$(lspci | grep -ic ethernet)
 VNIC=$(grep -cv 'lo\|eth' $TMPFD/$TMPFL3)
@@ -137,6 +164,8 @@ NMSR=$(awk ' /nameserver/ { print $2; exit } ' /etc/resolv.conf )
 DFGW=$(ip route | grep default | sed 's/default\|proto\|static//g')
 ###################################################################
 #Main Program
+###################################################################
+clear
 echo 
 #if [[ $UID -ne 0 ]]
 if (( UID ))
@@ -155,6 +184,9 @@ if [[ -n $1 ]] ; then
       -h ) usage
            exit 0
            ;;
+      -v ) version
+           exit 0
+           ;;
        * ) echo "Invalid Option try netadtchk -h, for now continuing with no option"
            pause
            ;;
@@ -169,14 +201,6 @@ then
 else
     echo $$ > $CHKPID
 fi
-#
-[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
-[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
-[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
-[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
-[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
-[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
-[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
 #
 case "$MJR" in
     "2" )

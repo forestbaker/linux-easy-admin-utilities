@@ -9,6 +9,7 @@
 # Author: Bellamkonda Sudhakar
 # License: GNU GPL v3
 ###################################################################
+UVersion=0.2
 Version=0.2
 License='GNU GPL v3'
 ###################################################################
@@ -21,14 +22,26 @@ do
 done 
 printf "\n"
 }
-#
+###################################################################
+function distribution {
+OPDST='Unknown'
+[[ $(echo ${BASH_VERSINFO[@]} | grep -c "slackware") ]] && OPDST='Slackware'
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu'
+echo "$OPDST" 
+}
 ###################################################################
 function cleanup {
 rm -f 2>/dev/null $CHKPID
 }
 ###################################################################
 function create_workspace {
-mkdir $TMPFD
+mkdir 2>/dev/null $TMPFD
 }
 ###################################################################
 function remove_workspace {
@@ -74,7 +87,31 @@ if [[ -z $(fdisk -v 2>/dev/null) ]]; then Depchk=1; Deperr='fdisk'; depchkerr; f
 if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi 
 }
 ###################################################################
-
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "File Sysytem Auditor $Version"
+echo 'Author: Bellamkonda Sudhakar'
+echo
+exit 0
+}
+###################################################################
+function usage {
+    echo
+    echo "Linux Easy Admin Utilities FileSystem Auditor Version $Version - $License License"
+    echo 'Author: Bellamkonda Sudhakar'
+    echo 'Usage: '
+    echo 'fsadtchk [ -a | -h | -c | -v ]'
+    echo '           -a All'
+    echo '           -h Help'
+    echo '           -c Clear PID files'
+    echo '           -v Version'
+    echo "No option prints the summery information to the stdout and into the $TMPFD/$AUDITFL file."
+    echo
+    exit 0
+}
+###################################################################
+# Data
 ###################################################################
 AUDITFL='fsaudit'
 CHKPID='/var/run/fsaudir-ppid'
@@ -86,61 +123,44 @@ OPSYS=$(uname -o)
 OPKER=$(uname -s)
 OPDST=$(uname -r)
 OPKRL=$(uname -r)
-OPDST='Unknown'
+OPDST=$(distribution)
 depchk
 workspace
 HSTNM=$AUDITFL
-MJR=${OPDST:0:1}
-MIR=${OPDST:2:1}
 FSTOT=$(mount | grep ^/dev/ | wc -l)
 FRMFSTAB=$(grep -v ^# /etc/fstab | grep -v "tmpfs\|devpts\|sysfs\|proc\|swap" | sed '/^$/d' | wc -l)
 PROCFS=$(ls /proc/fs)
 ###################################################################
 #Main Program Begin
 ###################################################################
-if [[ $UID -ne 0 ]]
+clear
+if [[ "$1" == "-v" ]] ; then version; fi
+if [[ "$1" == "-h" ]] ; then usage; fi
+#
+if (( $UID ))
 then
     echo
     echo "No root previleges"
     exit 1
 fi
+#
 if [[ "$1" == "-c" ]]
 then
    cleanup
-   echo "$0 PID files removed"
+   echo "PID files removed"
    exit 0
 fi
-if [[ "$1" == "-h" ]]
-then
-    echo
-    echo "Linux Easy Admin Utilities FileSystem Checker Version $Version - $License License"
-    echo 'Author: Bellamkonda Sudhakar'
-    echo "Usage: "
-    echo "fsadtchk [ -a | -h | -c ]"
-    echo "          -a All"
-    echo "          -h Help"
-    echo "          -c Clear PID files"
-    echo "           no option prints the summery information to the stdout and into the /tmp/netadtchk/$AUDITFL file."
-    echo
-    exit 0
-fi
+#
 if [[ -f $CHKPID ]] 
 then
-    echo " fsu Auditor running with PID $( < $CHKPID)"
+    echo " fsadtchk Auditor running with PID $( < $CHKPID)"
     echo " To clear the PID files use the -c option"    
     exit 1
 else
     echo $$ > $CHKPID
 fi
 #
-[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
-[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
-[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
-[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
-[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
-[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
-[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
-#
+OPDST=$(distribution)
 #
 echo "Scanning File Systems, takes more time if the FS's is bigger..."
 mount | grep ^/dev/ > $TMPFD/$TMPFL1

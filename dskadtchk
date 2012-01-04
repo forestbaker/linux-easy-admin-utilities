@@ -10,7 +10,7 @@
 # Author: Bellamkonda Sudhakar
 # License: GNU GPL v3
 ##################################################################
-LEAUVersion=0.1
+UVersion=0.2
 Version=0.2
 License='GNU GPL v3'
 ###################################################################
@@ -29,23 +29,34 @@ rm -f 2>/dev/null $CHKPID
 ###################################################################
 function usage {
     echo
-    echo "Linux Easy Admin Utilities Disk Checker Version $Version - $License License"
+    echo "Linux Easy Admin Utilities Disk Auditor Version $Version - $License License"
     echo 'Author: Bellamkonda Sudhakar'
     echo 'Usage: '
-    echo 'dskadtchk [ -h | -c ] '
+    echo 'dskadtchk [ -h | -c | -v ] '
     echo '          -h Help'
     echo '          -c Clear PID files'
-    echo '           no option prints the summery information to the stdout and into the /tmp/netadtchk/$AUDITFL file.'
+    echo '          -v Version'
+    echo "No option prints the summery information to the stdout and into the $TMPFD/$AUDITFL file."
     echo
     exit 0
 }
 ###################################################################
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "Disk Auditor $Version"
+echo 'Author: Bellamkonda Sudhakar'
+echo
+exit 0
+}
+###################################################################
+
 function cleanup {
 rm -f 2>/dev/null $CHKPID
 }
 ###################################################################
 function create_workspace {
-mkdir $TMPFD
+mkdir 2>/dev/null $TMPFD
 }
 ###################################################################
 function remove_workspace {
@@ -65,6 +76,19 @@ fi
 function pause {
 echo -n "Press enter to continue..."
 read
+}
+###################################################################
+function distribution {
+OPDST='Unknown'
+[[ $(echo ${BASH_VERSINFO[@]} | grep -c "slackware") ]] && OPDST='Slackware'
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu'
+echo "$OPDST" 
 }
 ###################################################################
 function line {
@@ -99,14 +123,13 @@ TMPFL3='tmpfl3'
 OPSYS=$(uname -o)
 OPKER=$(uname -s)
 OPKRL=$(uname -r)
-OPDST='Unknown'
+OPDST=$(distribution)
 depchk
 workspace
 HSTNM=$AUDITFL
-MJR=${OPKRL:0:1}
-MIR=${OPKRL:2:1}
-HWRCTL=$(lspci | grep -iw "ide\|sata" | wc -l)
-CNTDSK=$(dmesg | grep -iw "ide\|sata" | grep -w "link up" | wc -l) 
+HWRCTL=$(lspci | grep -iw "ide\|sata\|ata\|scsi" | wc -l)
+CNTDSK=$(dmesg | grep -iw "ide\|sata\|ata\|scsi" | grep -w "link up" | wc -l)
+[[ "$OPDST" == "Slackware" ]] && CNTDSK=$(dmesg | grep -iw "ide\|sata\|ata\|scsi" | grep -w "ATA" | wc -l)
 HDTYPE=0
 SDTYPE=0
 SDD=0
@@ -117,7 +140,11 @@ DA=(a b c d e f g h i j k l m n o p)
 ###################################################################
 #Main Program Begin
 ###################################################################
-if [[ $UID -ne 0 ]]
+clear
+#
+if [[ "$1" == "-h" ]] ; then usage ; fi
+if [[ "$1" == "-v" ]] ; then version ; fi
+if (( $UID ))
 then
     echo
     echo 'No root previleges'
@@ -126,10 +153,11 @@ fi
 if [[ "$1" == "-c" ]]
 then
    cleanup
-   echo "$0 PID files removed"
+   echo
+   echo " PID files removed"
+   echo
    exit 0
 fi
-if [[ "$1" == "-h" ]] ; then usage ; fi
 if [[ -f $CHKPID ]] 
 then
     echo " $0 Auditor running with PID $( < $CHKPID)"
@@ -138,14 +166,6 @@ then
 else
     echo $$ > $CHKPID
 fi
-#
-[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
-[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
-[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
-[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
-[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
-[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
-[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu' 
 #
 T=$(ls -l /dev/hd[abcdefghijklmnop] 2>/dev/null | wc -l)
 if (( $T > 0 )) ; then HDTYPE=1; fi

@@ -8,20 +8,28 @@
 # Author: Bellamkonda Sudhakar
 # License: GNU GPL v3
 ##################################################################
-LEAUVersion=0.1
-Version=0.2
+UVersion=0.2
+Version=0.3
 License='GNU GPL V3'
+Depchk=0
+Ln=8
+Depopt=$1
 ##################################################################
 function depchkerr {
+if [[ "$Depopt" == "-c" ]]
+then
 echo "Dep check error - $Deperr"
+fi
 }
 ##################################################################
 function depchk {
-Depchk=0
 Deperr=''
+Depchk=0
 if [[ -z $(tr --version 2>/dev/null) ]]; then Depchk=1; Deperr='tr'; depchkerr; fi
 if [[ -z $(head --version 2>/dev/null) ]]; then Depchk=1; Deperr='head'; depchkerr; fi
-if [[ $Depchk -eq 1 ]]; then cleanup; exit 1; fi 
+if [[ -z $(echo $RANDOM | md5sum 2>/dev/null) ]]; then Depchk=1; Deperr='md5sum'; depchkerr; fi
+if [[ -z $(echo $RANDOM | sha512sum 2>/dev/null) ]]; then Depchk=1; Deperr='sha512sum'; depchkerr; fi
+exit $Depchk
 }
 ###################################################################
 function uerror {
@@ -34,42 +42,64 @@ printf "%s\n" "Numbers only"
 exit 1
 }
 ##################################################################
-function usage {
-echo "Linux Easy Admin Utilities Password Generator Version $LEAUVersion - $License License
+function version {
+echo "Linux Easy Admin Utilities Version $UVersion - $License License
 Author: Bellamkonda Sudhakar"
 printf "\n%s\n" "Password Generator $Version - $License License"
-printf "\n%s" "pwgen [ n ]"
+exit 0
+}
+##################################################################
+function usage {
+echo "Linux Easy Admin Utilities Password Generator Version $UVersion - $License License
+Author: Bellamkonda Sudhakar"
+printf "\n%s\n" "Password Generator $Version - $License License"
+printf "\n%s" "pwgen [ n | -h | -v | -c ]"
 printf "\n%s" "Options:"
 printf "\n%5s%s" " " " n  where n can be a numeric between 9-32, when not given default is 8"
 printf "\n%5s%s" " " " e.g. pwgen 16"
-printf "\n%5s%s\n" " " "-h  displays this usage page"
+printf "\n%5s%s" " " "-c Displays if a password generation dependency exists or not"
+printf "\n%5s%s" " " "-h  displays this usage page"
+printf "\n%5s%s\n" " " "-v  displays version information"
 exit 0
 }
 #################################################################
 function pgen {
-PASSWORD=$(tr -dc A-Za-z0-9_ < /dev/urandom | head -c $Ln)
-printf "%s\n" "$PASSWORD"
+Depchk=$(depchk)
+if (( Depchk )) ; then
+    Trn=$(echo $RANDOM)
+    Ttn=$(date +%N)
+    Tsn=$(date +%s)
+    Pswd=$(echo $Tsn$Ttn$Trn | md5sum | sha512sum)
+    Password=${Pswd:0:Ln}
+else
+    Password=$(tr -dc A-Za-z0-9_ < /dev/urandom | head -c $Ln)
+fi 
+printf "%s\n" "$Password"
 exit 0
 }
 ##################################################################
 #Main Program
 ##################################################################
-Ln=8
+clear
 #
 [[ $UID -ne 0 ]] && uerror
 #
 [[ "$1" == "-h" ]] && usage
+#
+[[ "$1" == "-v" ]] && version
+#
+[[ "$1" == "-c" ]] && depchk
 #
 [[ $# -eq 0 ]] && pgen 
 #
 if [ $1 -eq $1 2>/dev/null ]
 then
     Ln=$1
-    [[ $1 -gt 32 ]] && Ln=32
-    [[ $1 -lt 8 ]]  && Ln=8
+    [[ $1 -gt 32 ]] && Ln=32 
+    [[ $1 -lt 8 ]]  && Ln=8 
     pgen 
 else
     numerr
-    usage
 fi
+exit 0
 
