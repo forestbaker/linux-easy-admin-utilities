@@ -1,0 +1,165 @@
+#!/bin/bash
+##################################################################
+#
+# Script to check / audit systems process using network resources
+# and report a detailed info from various system file, process and
+# outputs
+#
+##################################################################
+#
+# Author: Bellamkonda Sudhakar
+# License: GNU GPL v3
+##################################################################
+Version=0.2
+UVersion=0.2
+License='GNU GPL v3'
+##################################################################
+# Functions
+##################################################################
+function distribution {
+OPDST='Unknown'
+[[ $(echo ${BASH_VERSINFO[@]} | grep -c "slackware") ]] && OPDST='Slackware'
+[[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
+[[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
+[[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
+[[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
+[[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
+[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu'
+echo "$OPDST" 
+}
+###################################################################
+function depchkerr {
+echo
+echo "Dep check error - $Deperr"
+echo
+}
+##################################################################
+function depchk {
+Depchk=0
+Deperr=''
+if [[ -z $(wc --version 2>/dev/null) ]]; then Depchk=1; Deperr='wc'; depchkerr; fi
+if [[ -z $(dmesg 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
+if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
+if [[ -z $(lspci 2>/dev/null) ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
+if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+if [[ -z $(grep -V 2>/dev/null) ]]; then Dechk=1; Deperr='grep'; depchkerr; fi 
+if [[ -z $(sed --version 2>/dev/null) ]]; then Depchk=1; Deperr='sed'; depchkerr; fi
+if [[ -z $(mount -V 2>/dev/null) ]]; then Depchk=1; Deperr='mount'; depchkerr; fi
+if [[ -z $(fdisk -v 2>/dev/null) ]]; then Depchk=1; Deperr='fdisk'; depchkerr; fi
+if [[ -z $(du --version 2>/dev/null) ]]; then Depchk=1; Deperr='du'; depchkerr; fi
+if [[ -z $(df --version 2>/dev/null) ]]; then Depchk=1; Deperr='df'; depchkerr; fi
+if [[ -z $(sort --version 2>/dev/null) ]]; then Depchk=1; Deperr='sort'; depchkerr; fi
+if [[ -z $(head --version 2>/dev/null) ]]; then Depchk=1; Deperr='head'; depchkerr; fi
+if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
+if [[ -z $(netstat 2>/dev/null) ]]; then Depchk=1; Deperr='netstat'; depchkerr; fi
+if [[ -z $(lsof 2>/dev/null) ]]; then Depchk=1; Deperr='lsof'; depchkerr; fi
+if [[ -z $(ip -V 2>/dev/null) ]]; then Depchk=1; Deperr='ip'; depchkerr; fi
+if [[ -z $(ss 2>/dev/null) ]]; then Depchk=1; Deperr='ss'; depchkerr; fi
+if [[ -z $(ifconfig 2>/dev/null) ]]; then Depchk=1; Deperr='ifconfig'; depchkerr; fi
+if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
+if [[ -z $(tr --version 2>/dev/null) ]]; then Depchk=1; Deperr='tr'; depchkerr; fi
+if [[ -z $(free -V 2>/dev/null) ]]; then Depchk=1; Deperr'free'; depchkerr; fi
+if [[ $Depchk -eq 1 ]]; then exit 1; fi 
+}
+###################################################################
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "Sysytem User Auditor $Version"
+echo 'Author: Bellamkonda Sudhakar'
+echo
+exit 0
+}
+###################################################################
+function usage {
+echo
+echo "Linux Easy Admin Utilities System User Auditor Version $Version - $License License"
+echo 'Author: Bellamkonda Sudhakar
+Usage: 
+    usradtchk [ -h | -v ]
+   -h Help
+   -v Version'
+echo
+exit 0
+}
+###################################################################
+function idchk {
+if (( UID ))
+then
+    echo
+    echo "No root previleges"
+    exit 1
+fi
+}
+###################################################################
+#Data
+###################################################################
+CHKPID='/var/run/usradtchk-ppid'
+OPSYS=$(uname -o)
+OPKER=$(uname -s)
+OPKRL=$(uname -r)
+OPDST=$(distribution)
+HSTNM=$( < /proc/sys/kernel/hostname )
+DOMAIN=$( < /proc/sys/kernel/domainname ) 
+#
+Tut=$(wc -l < /etc/passwd)
+Nolog=$(grep nologin /etc/passwd | wc -l)
+Llog=$(grep bash /etc/passwd | wc -l)
+Hflog=$(grep home /etc/passwd | wc -l)
+Nhflog=$(( Llog - Hflog ))
+Muid=$(grep UID_MIN /etc/login.defs | awk ' { print $2 } ')
+Mauid=$(grep UID_MAX /etc/login.defs | awk ' { print $2 } ')
+Mgid=$(grep GID_MIN /etc/login.defs | awk ' { print $2 } ')
+Magid=$(grep GID_MAX /etc/login.defs | awk ' { print $2 } ')
+Pu=$(ls 2>/dev/null /home/)
+Pun=$(ls 2>/dev/null /home/ | wc -w)
+Zeroid=$(grep -c "0:0.*root" /etc/passwd)
+[[ $Zeroid ]] && Zidu='root' || Zidu='Non root'
+Gtot=$(wc -l < /etc/group)
+Rtv=$(grep ^root /etc/group | awk -F ':' ' { print $4 } ' )
+Rgur=$(( $(echo $Rtv | wc -l ) + $(echo $Rtv | grep -c ',') ))
+Wtv=$(grep ^wheel /etc/group | awk -F ':' ' { print $4 } ' )
+Wgur=$(( $(echo $Wtv | wc -l ) + $(echo $Wtv | grep -c ',') ))
+Tv=$(grep ^users /etc/group | awk -F ':' ' { print $4 } ' )
+Ugur=$(( $(echo $Tv | wc -l ) + $(echo $Tv | grep -c ',') ))
+###################################################################
+#Main Program
+###################################################################
+#
+clear
+if [[ "$1" == "-h" ]] ; then usage ; fi
+if [[ "$1" == "-v" ]] ; then version ; fi
+#
+idchk
+depchk
+#
+echo
+echo "Linux Easy Admin Utilities System User Auditor Version $Version - $License License
+Author: Bellamkonda Sudhakar"
+echo
+echo "Audit / Information displayed to stdout only"
+echo
+#
+printf "%12s %15s %20s %16s\n" "OS" "Kernel" "Release" "Distribution"
+printf "%12s %15s %20s %16s\n\n" "$OPSYS" "$OPKER" "$OPKRL" "$OPDST"
+#
+printf "%25s %25s %20s\n" "Hostname" "Domain" "EasyAdmin Utilites"
+printf "%25s %25s %20s\n\n"  "$HSTNM" "$DOMAIN" "$License-v$UVersion"
+#
+printf "%15s%12s%20s%20s %25s\n" "Total" "Logins" "No-Logins" "Home Folder" "Other Folder"
+printf "%15s%12s%20s%20s %25s\n\n" "$Tut" "$Llog" "$Nolog" "$Hflog" "$Nhflog"
+#
+printf "%14s%14s%14s%14s%14s%14s%14s\n" "Min UID" "Max UID" "Min GID" "Max GID" "ZeroID" "ZeroID-User" ""
+printf "%14s%14s%14s%14s%14s%14s%14s\n\n" "$Muid" "$Mauid" "$Mgid" "$Magid" "$Zeroid" "$Zidu" ""
+#
+printf "%14s%14s%14s%14s%14s%14s%14s\n" "Groups" "Root Users" "Wheel Users" "Users" "" "" ""
+printf "%14s%14s%14s%14s%14s%14s%14s\n\n" "$Gtot" "$Rgur" "$Wgur" "$Ugur" "" "" ""
+#
+printf "%20s %s\n" "Root Users : " "$Rtv"
+printf "%20s %s\n\n" "Wheel Users : " "$Wtv" 
+#
+echo
+exit 0
+##
+###################################################################

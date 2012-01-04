@@ -1,0 +1,72 @@
+#!/bin/bash
+##################################################################
+#
+# Script to check / audit systems process using network resources
+# and report a detailed info from various system file, process and
+# outputs
+#
+##################################################################
+#
+# Author: Bellamkonda Sudhakar
+# License: GNU GPL v3
+##################################################################
+Version=0.1
+UVersion=0.2
+License='GNU GPL v3'
+##################################################################
+# Functions
+##################################################################
+function tmpclean {
+rm -Rf /tmp/dfuadtchk 2>/dev/null
+rm -Rf /tmp/fsaudit 2>/dev/null
+rm -Rf /tmp/genadtchk 2>/dev/null
+rm -Rf /tmp/netadtchk 2>/dev/null
+}
+###################################################################
+function version {
+echo
+echo "Linux Easy Admin Utilities $UVersion - $License License"
+echo "Audit tmp file remover $Version"
+echo 'Author: Bellamkonda Sudhakar'
+echo
+exit 0
+}
+###################################################################
+function usage {
+echo
+echo "Linux Easy Admin Utilities Audit tmp file remover Version $Version - $License License"
+echo 'Author: Bellamkonda Sudhakar
+Usage: 
+    adttmpcln [ -h | -v ]
+   -h Help
+   -v Version'
+echo
+exit 0
+}
+###################################################################
+
+###################################################################
+#Main Program
+###################################################################
+clear
+#
+if [[ "$1" == "-h" ]] ; then usage ; fi
+if [[ "$1" == "-v" ]] ; then version ; fi
+#
+if (( UID ))
+then
+    echo
+    echo "No root previleges"
+    exit 1
+fi
+#
+echo
+echo "Linux Easy Admin Utilities Audit tmp file remover Version $Version - $License License
+Author: Bellamkonda Sudhakar"
+tmpclean
+echo
+echo "All Audit folders and files removed from system /tmp"
+echo
+exit 0
+#
+###################################################################
