@@ -154,9 +154,14 @@ DOMAIN=$( < /proc/sys/kernel/domainname )
 #
 depchk
 workspace
-$(ip -d link | grep  '^[0-9]*: ' > $TMPFD/$TMPFL3)
-[[ "$OPDST" == "Sackware" ]] && $(ip -f link addr | grep  '^[0-9]*: ' > $TMPFD/$TMPFL3)
-$(ip -d addr > $TMPFD/$TMPFL2)
+if [[ "$OPDST" == "Slackware" ]] 
+then
+    $(ip -f link link | grep  '^[0-9]*: ' > $TMPFD/$TMPFL3)
+    $(ip -f inet addr > $TMPFD/$TMPFL2)
+else
+    $(ip -d link | grep  '^[0-9]*: ' > $TMPFD/$TMPFL3)
+    $(ip -d addr > $TMPFD/$TMPFL2)
+fi
 HNIC=$(lspci | grep -ic ethernet)
 VNIC=$(grep -cv 'lo\|eth' $TMPFD/$TMPFL3)
 LNIC=$(grep -c 'lo' $TMPFD/$TMPFL3)

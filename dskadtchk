@@ -103,7 +103,7 @@ function depchk {
 Depchk=0
 Deperr=''
 if [[ -z $(wc --version 2>/dev/null) ]]; then Depchk=1; Deperr='wc'; depchkerr; fi
-if [[ -z $(dmesg --version 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
+if [[ -z $(dmesg 2>/dev/null) ]]; then Depchk=1; Deperr='dmesg'; depchkerr; fi
 if [[ -z $(which which 2>/dev/null) ]]; then Depchk=1; Deperr='which'; depchkerr; fi
 if [[ -z $(lspci 2>/dev/null) ]]; then Depchk=1; Deperr='lspci'; depchkerr; fi
 if [[ -z $(awk --version 2>/dev/null) ]]; then Depchk=1; Deperr='awk'; depchkerr; fi
