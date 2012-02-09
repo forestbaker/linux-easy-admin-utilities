@@ -81,12 +81,13 @@ read
 function distribution {
 OPDST='Unknown'
 [[ $(echo ${BASH_VERSINFO[@]} | grep -c "slackware") ]] && OPDST='Slackware'
+
 [[ $(grep -i fedora /proc/version) ]] && OPDST='Fedora'
 [[ $(grep -i debian /proc/version) ]] && OPDST='Debian'
 [[ $(grep -i centos /proc/version) ]] && OPDST='CentOS'
 [[ $(grep -i suse /proc/version) ]] && OPDST='SUSE'
 [[ $(grep -i rhel /proc/version) ]] && OPDST='RHEL'
-[[ $(grep -i slackware /proc/version) ]] && OPDST='Slackware'
+[[ $(grep -i redhat /proc/version) ]] && OPDST='Redhat'
 [[ $(grep -i ubuntu /proc/version) ]] && OPDST='Ubuntu'
 echo "$OPDST" 
 }
